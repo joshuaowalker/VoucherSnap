@@ -56,6 +56,36 @@ export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH
 
 Add this to your `~/.zshrc` or `~/.bashrc` for persistence.
 
+## Authentication
+
+VoucherSnap uses OAuth 2.0 with PKCE (Proof Key for Code Exchange) to authenticate with iNaturalist. This is the recommended authentication flow for desktop/CLI applications as it doesn't require storing secrets.
+
+### Login
+
+```bash
+vouchersnap login
+```
+
+This opens your browser to the iNaturalist login page. After you authorize VoucherSnap, your session is cached locally for future use.
+
+### Logout
+
+```bash
+vouchersnap logout
+```
+
+Clears your cached session.
+
+### How Authentication Works
+
+1. When you run `login` (or `run` without an existing session), VoucherSnap starts a temporary local server on `http://127.0.0.1:8914`
+2. Your browser opens to iNaturalist's authorization page
+3. After you log in and authorize, iNaturalist redirects to the local server with an authorization code
+4. VoucherSnap exchanges the code for an access token using PKCE verification
+5. The token is cached in `~/.VoucherSnap/token.json`
+
+This flow follows [RFC 7636](https://tools.ietf.org/html/rfc7636) and doesn't require a client secret, making it safe for open-source applications.
+
 ## Usage
 
 ### Interactive Workflow
@@ -129,8 +159,8 @@ Caption: Packaged for DNA Sequencing 12/11/2025
 Upload 5 image(s) to iNaturalist? [Y/n]: y
 
 iNaturalist Authentication
-Username: mycouser
-Password: ********
+Opening browser for iNaturalist login...
+Complete the login in your browser to continue.
 Authenticated successfully
 
 Uploading images...
@@ -145,6 +175,7 @@ Upload Summary
 
 VoucherSnap stores data in `~/.VoucherSnap/`:
 
+- `token.json` - Cached OAuth access token
 - `history.json` - Upload history for duplicate detection
 
 ## Options
