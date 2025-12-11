@@ -3,12 +3,11 @@
 import io
 
 from pyinaturalist import (
-    get_access_token,
     get_observation,
     upload_photos,
 )
 
-from .config import Config
+from .auth import TokenInfo
 from .models import Observation
 
 
@@ -20,46 +19,28 @@ class INatError(Exception):
 class INatClient:
     """Client for interacting with the iNaturalist API."""
 
-    def __init__(self, config: Config):
+    def __init__(self, token: TokenInfo | None = None):
         """
-        Initialize the client with OAuth credentials.
+        Initialize the client.
 
         Args:
-            config: Configuration containing client_id and client_secret
+            token: Optional TokenInfo for authenticated requests
         """
-        self.config = config
-        self._access_token: str | None = None
+        self._token = token
+
+    @property
+    def access_token(self) -> str | None:
+        """Get the access token string."""
+        return self._token.access_token if self._token else None
 
     @property
     def is_authenticated(self) -> bool:
         """Check if client has a valid access token."""
-        return self._access_token is not None
+        return self._token is not None and not self._token.is_expired
 
-    def authenticate(self, username: str, password: str) -> None:
-        """
-        Authenticate with iNaturalist and obtain access token.
-
-        Args:
-            username: iNaturalist username
-            password: iNaturalist password
-
-        Raises:
-            INatError: If authentication fails
-        """
-        if not self.config.is_configured:
-            raise INatError(
-                "OAuth credentials not configured. Run 'vouchersnap config' first."
-            )
-
-        try:
-            self._access_token = get_access_token(
-                username=username,
-                password=password,
-                app_id=self.config.client_id,
-                app_secret=self.config.client_secret,
-            )
-        except Exception as e:
-            raise INatError(f"Authentication failed: {e}") from e
+    def set_token(self, token: TokenInfo) -> None:
+        """Set the access token."""
+        self._token = token
 
     def fetch_observation(self, obs_id: int) -> Observation:
         """
@@ -119,7 +100,7 @@ class INatClient:
             INatError: If not authenticated or upload fails
         """
         if not self.is_authenticated:
-            raise INatError("Not authenticated. Call authenticate() first.")
+            raise INatError("Not authenticated. Please log in first.")
 
         try:
             # Convert bytes to file-like object
@@ -129,7 +110,7 @@ class INatClient:
             response = upload_photos(
                 observation_id=obs_id,
                 photos=photo_file,
-                access_token=self._access_token,
+                access_token=self.access_token,
             )
 
             # Response is a list of photo dicts

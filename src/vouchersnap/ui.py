@@ -179,36 +179,11 @@ def prompt_confirm_duplicates() -> bool:
     )
 
 
-def prompt_credentials() -> tuple[str, str]:
-    """
-    Prompt for iNaturalist credentials.
-
-    Returns:
-        Tuple of (username, password)
-    """
+def print_auth_browser_message() -> None:
+    """Inform user that browser will open for authentication."""
     console.print("\n[bold]iNaturalist Authentication[/bold]")
-    username = Prompt.ask("Username")
-    password = Prompt.ask("Password", password=True)
-    return username, password
-
-
-def prompt_oauth_config() -> tuple[str, str]:
-    """
-    Prompt for OAuth application credentials.
-
-    Returns:
-        Tuple of (client_id, client_secret)
-    """
-    console.print("\n[bold]OAuth Application Setup[/bold]")
-    console.print(
-        "Create an application at: "
-        "[link=https://www.inaturalist.org/oauth/applications]"
-        "inaturalist.org/oauth/applications[/link]"
-    )
-    console.print()
-    client_id = Prompt.ask("Client ID (App ID)")
-    client_secret = Prompt.ask("Client Secret")
-    return client_id, client_secret
+    console.print("Opening browser for iNaturalist login...")
+    console.print("[dim]Complete the login in your browser to continue.[/dim]")
 
 
 def create_progress() -> Progress:

@@ -1,17 +1,17 @@
 """Command-line interface for VoucherSnap."""
 
 import glob
-from datetime import datetime
 from pathlib import Path
 
 import click
 
 from . import __version__
-from .config import Config, load_config, save_config
+from .auth import authenticate_pkce, AuthError
+from .config import Config, load_config, save_config, load_token, save_token
 from .history import HistoryManager
 from .images import compute_hash, process_image
 from .inat import INatClient, INatError
-from .models import ManifestItem, ProcessingOptions, ScanResult
+from .models import ManifestItem, ProcessingOptions
 from .scanner import is_supported_image, scan_batch, get_supported_extensions
 from . import ui
 
@@ -63,6 +63,41 @@ def resolve_paths(paths: tuple[str, ...]) -> list[Path]:
     return sorted(unique, key=lambda p: p.name)
 
 
+def get_authenticated_client(config: Config) -> INatClient:
+    """
+    Get an authenticated iNaturalist client.
+
+    Uses cached token if available and valid, otherwise initiates
+    browser-based PKCE authentication.
+
+    Args:
+        config: Application configuration with client_id
+
+    Returns:
+        Authenticated INatClient
+
+    Raises:
+        SystemExit: If authentication fails
+    """
+    # Try to use cached token
+    token = load_token()
+    if token and not token.is_expired:
+        ui.print_info("Using cached authentication")
+        return INatClient(token)
+
+    # Need to authenticate
+    ui.print_auth_browser_message()
+
+    try:
+        token = authenticate_pkce(config.client_id)
+        save_token(token)
+        ui.print_success("Authenticated successfully")
+        return INatClient(token)
+    except AuthError as e:
+        ui.print_error(f"Authentication failed: {e}")
+        raise SystemExit(1)
+
+
 @click.group(invoke_without_command=True)
 @click.version_option(version=__version__)
 @click.pass_context
@@ -93,8 +128,8 @@ def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int
     # Load configuration
     config = load_config()
     if not config.is_configured:
-        ui.print_error("OAuth credentials not configured.")
-        ui.print_info("Run 'vouchersnap config' to set up your iNaturalist application.")
+        ui.print_error("iNaturalist application not configured.")
+        ui.print_info("Run 'vouchersnap login' to authenticate with iNaturalist.")
         raise SystemExit(1)
 
     # Resolve paths
@@ -123,9 +158,9 @@ def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int
 
     ui.print_success(f"Found QR codes in {len(successful_scans)} image(s)")
 
-    # Fetch observation metadata
+    # Fetch observation metadata (no auth needed)
     ui.console.print("\n[bold]Fetching observation data...[/bold]")
-    client = INatClient(config)
+    client = INatClient()  # No token needed for read-only
     obs_ids = list(set(r.observation_id for r in successful_scans if r.observation_id))
 
     observations = {}
@@ -192,15 +227,8 @@ def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int
         ui.print_info("Upload cancelled.")
         raise SystemExit(0)
 
-    # Authenticate
-    username, password = ui.prompt_credentials()
-    try:
-        client.authenticate(username, password)
-    except INatError as e:
-        ui.print_error(f"Authentication failed: {e}")
-        raise SystemExit(1)
-
-    ui.print_success("Authenticated successfully")
+    # Authenticate (uses cached token or opens browser)
+    client = get_authenticated_client(config)
 
     # Process and upload
     options = ProcessingOptions(
@@ -289,28 +317,47 @@ def history(limit: int):
     ui.display_history(records, limit=limit)
 
 
-@cli.command("config")
-def configure():
-    """Configure iNaturalist OAuth credentials."""
+@cli.command()
+def login():
+    """Authenticate with iNaturalist.
+
+    Opens a browser window for you to log in to iNaturalist.
+    Your session will be cached for future use.
+    """
     ui.print_banner()
 
     config = load_config()
+    if not config.is_configured:
+        ui.print_error("iNaturalist application not configured.")
+        ui.print_info("Please wait for the application to be configured.")
+        raise SystemExit(1)
 
-    if config.is_configured:
-        ui.print_info("Existing configuration found.")
-        if not ui.console.input("Overwrite? [y/N]: ").lower().startswith("y"):
+    # Check for existing valid token
+    token = load_token()
+    if token and not token.is_expired:
+        ui.print_info("Already logged in (session still valid).")
+        if not ui.console.input("Re-authenticate? [y/N]: ").lower().startswith("y"):
             raise SystemExit(0)
 
-    client_id, client_secret = ui.prompt_oauth_config()
+    ui.print_auth_browser_message()
 
-    config = Config(
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    save_config(config)
+    try:
+        token = authenticate_pkce(config.client_id)
+        save_token(token)
+        ui.print_success("Authentication successful! Session cached for future use.")
+    except AuthError as e:
+        ui.print_error(f"Authentication failed: {e}")
+        raise SystemExit(1)
 
-    ui.print_success("Configuration saved!")
-    ui.print_info(f"Config file: {config}")
+
+@cli.command()
+def logout():
+    """Clear cached iNaturalist session."""
+    ui.print_banner()
+
+    from .config import clear_token
+    clear_token()
+    ui.print_success("Logged out. Cached session cleared.")
 
 
 def main():

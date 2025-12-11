@@ -1,8 +1,10 @@
 """Configuration management for VoucherSnap."""
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
+
+from .auth import TokenInfo
 
 
 DEFAULT_MAX_DIMENSION = 2048
@@ -21,6 +23,11 @@ def get_config_path() -> Path:
     return get_app_dir() / "config.json"
 
 
+def get_token_path() -> Path:
+    """Get the path to the token file."""
+    return get_app_dir() / "token.json"
+
+
 def get_history_path() -> Path:
     """Get the path to the history file."""
     return get_app_dir() / "history.json"
@@ -31,22 +38,18 @@ class Config:
     """VoucherSnap configuration."""
 
     client_id: str = ""
-    client_secret: str = ""
-    username: str | None = None
     default_max_dimension: int = DEFAULT_MAX_DIMENSION
     default_jpeg_quality: int = DEFAULT_JPEG_QUALITY
 
     @property
     def is_configured(self) -> bool:
-        """Check if OAuth credentials are configured."""
-        return bool(self.client_id and self.client_secret)
+        """Check if OAuth client ID is configured."""
+        return bool(self.client_id)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
             "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "username": self.username,
             "default_max_dimension": self.default_max_dimension,
             "default_jpeg_quality": self.default_jpeg_quality,
         }
@@ -56,8 +59,6 @@ class Config:
         """Create from dictionary (JSON deserialization)."""
         return cls(
             client_id=data.get("client_id", ""),
-            client_secret=data.get("client_secret", ""),
-            username=data.get("username"),
             default_max_dimension=data.get("default_max_dimension", DEFAULT_MAX_DIMENSION),
             default_jpeg_quality=data.get("default_jpeg_quality", DEFAULT_JPEG_QUALITY),
         )
@@ -81,3 +82,32 @@ def save_config(config: Config) -> None:
     config_path = get_config_path()
     with open(config_path, "w") as f:
         json.dump(config.to_dict(), f, indent=2)
+
+
+def load_token() -> TokenInfo | None:
+    """Load saved token from file, or return None if not found or expired."""
+    token_path = get_token_path()
+    if token_path.exists():
+        try:
+            with open(token_path) as f:
+                data = json.load(f)
+            token = TokenInfo.from_dict(data)
+            if not token.is_expired:
+                return token
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+    return None
+
+
+def save_token(token: TokenInfo) -> None:
+    """Save token to file."""
+    token_path = get_token_path()
+    with open(token_path, "w") as f:
+        json.dump(token.to_dict(), f, indent=2)
+
+
+def clear_token() -> None:
+    """Remove saved token."""
+    token_path = get_token_path()
+    if token_path.exists():
+        token_path.unlink()
