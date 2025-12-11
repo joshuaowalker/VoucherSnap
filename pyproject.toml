@@ -7,17 +7,17 @@ name = "vouchersnap"
 version = "0.1.0"
 description = "Herbarium specimen photo manager - scan QR codes and upload to iNaturalist"
 readme = "README.md"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 authors = [
-    {name = "VoucherSnap Contributors"}
+    {name = "Josh Walker", email = "joshowalker@yahoo.com"}
 ]
 keywords = ["herbarium", "iNaturalist", "mycology", "specimen", "QR code"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -44,8 +44,9 @@ dev = [
 vouchersnap = "vouchersnap.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/vouchersnap/vouchersnap"
-Repository = "https://github.com/vouchersnap/vouchersnap"
+Homepage = "https://github.com/joshuaowalker/VoucherSnap"
+Repository = "https://github.com/joshuaowalker/VoucherSnap"
+Issues = "https://github.com/joshuaowalker/VoucherSnap/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
