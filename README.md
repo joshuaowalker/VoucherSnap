@@ -42,7 +42,7 @@ pip install vouchersnap
 
 Or install from source:
 ```bash
-git clone https://github.com/vouchersnap/vouchersnap.git
+git clone https://github.com/joshuaowalker/VoucherSnap.git
 cd vouchersnap
 pip install -e .
 ```
@@ -55,21 +55,6 @@ export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH
 ```
 
 Add this to your `~/.zshrc` or `~/.bashrc` for persistence.
-
-## Configuration
-
-Before using VoucherSnap, you need to set up iNaturalist OAuth credentials:
-
-1. Go to [inaturalist.org/oauth/applications](https://www.inaturalist.org/oauth/applications)
-2. Create a new application
-3. Note your Client ID (App ID) and Client Secret
-4. Run `vouchersnap config` and enter your credentials
-
-```bash
-vouchersnap config
-```
-
-Credentials are stored in `~/.VoucherSnap/config.json`.
 
 ## Usage
 
@@ -160,7 +145,6 @@ Upload Summary
 
 VoucherSnap stores data in `~/.VoucherSnap/`:
 
-- `config.json` - OAuth credentials and default settings
 - `history.json` - Upload history for duplicate detection
 
 ## Options
@@ -187,4 +171,4 @@ VoucherSnap stores data in `~/.VoucherSnap/`:
 
 ## License
 
-MIT License
+BSD 2-Clause License
