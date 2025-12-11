@@ -3,12 +3,19 @@
 import io
 
 from pyinaturalist import (
+    ClientSession,
     get_observation,
     upload_photos,
 )
 
+from . import __version__
 from .auth import TokenInfo
 from .models import Observation
+
+
+# Custom session with VoucherSnap user agent
+# pyinaturalist handles rate limiting automatically (60 req/min default)
+_session = ClientSession(user_agent=f"VoucherSnap/{__version__}")
 
 
 class INatError(Exception):
@@ -56,7 +63,7 @@ class INatClient:
             INatError: If observation not found or API error
         """
         try:
-            response = get_observation(obs_id)
+            response = get_observation(obs_id, session=_session)
 
             # Extract taxon information
             taxon = response.get("taxon", {})
@@ -111,6 +118,7 @@ class INatClient:
                 observation_id=obs_id,
                 photos=photo_file,
                 access_token=self.access_token,
+                session=_session,
             )
 
             # Response is a list of photo dicts
