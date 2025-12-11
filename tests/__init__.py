@@ -1,0 +1,1 @@
+"""VoucherSnap tests."""
