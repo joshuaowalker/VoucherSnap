@@ -4,7 +4,7 @@ import hashlib
 import io
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 try:
     from pillow_heif import register_heif_opener
@@ -44,21 +44,8 @@ def load_image(path: Path) -> Image.Image:
     """
     img = Image.open(path)
 
-    # Handle EXIF orientation
-    try:
-        exif = img._getexif()
-        if exif:
-            orientation = exif.get(274)  # 274 is the EXIF orientation tag
-            if orientation:
-                rotations = {
-                    3: 180,
-                    6: 270,
-                    8: 90,
-                }
-                if orientation in rotations:
-                    img = img.rotate(rotations[orientation], expand=True)
-    except (AttributeError, KeyError, TypeError):
-        pass
+    # Handle EXIF orientation (rotations and mirroring)
+    img = ImageOps.exif_transpose(img)
 
     # Convert to RGB if necessary
     if img.mode in ("RGBA", "P"):
