@@ -4,6 +4,19 @@ A Python CLI tool for managing herbarium/fungarium specimen images. VoucherSnap 
 
 Designed to work with [inat.label.py](https://github.com/AlanRockefeller/inat.label.py), which generates herbarium labels with QR codes linking to iNaturalist observations.
 
+## Intended Use
+
+VoucherSnap is designed for observers who:
+
+1. **Make a field observation** - You encounter an organism in nature and create an iNaturalist observation with field photos
+2. **Collect a voucher specimen** - You collect the organism (following proper permits and protocols) for preservation in a herbarium or fungarium
+3. **Photograph the preserved specimen** - Later, you photograph the dried/preserved specimen alongside its label (which contains a QR code linking to the original observation)
+4. **Add specimen photos to your observation** - VoucherSnap uploads these specimen photos to your existing observation, documenting both the living organism and the preserved voucher
+
+This workflow adds scientific value by linking field observations with physical specimens that can be studied, sequenced, or verified.
+
+**Important:** VoucherSnap uploads photos only to observations you own. Please follow [iNaturalist's Terms of Use](https://www.inaturalist.org/terms) and community guidelines. Do not use this tool to upload photos of specimens you did not personally observe and collect.
+
 ## Features
 
 - Scan images for QR codes containing iNaturalist observation URLs
