@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 from pyzbar import pyzbar
 
 try:
@@ -39,9 +39,52 @@ def extract_observation_id(url: str) -> int | None:
     return None
 
 
+def _try_decode_qr(img: Image.Image) -> str | None:
+    """Try to decode a QR code from an image and extract iNat observation ID."""
+    decoded = pyzbar.decode(img)
+    for obj in decoded:
+        if obj.type == "QRCODE":
+            try:
+                data = obj.data.decode("utf-8")
+                obs_id = extract_observation_id(data)
+                if obs_id is not None:
+                    return obs_id
+            except UnicodeDecodeError:
+                continue
+    return None
+
+
+def _generate_image_variants(img: Image.Image):
+    """Generate image variants to try for QR detection."""
+    w, h = img.size
+
+    # Try multiple resize levels - pyzbar can struggle with very high-res images
+    for max_dim in [2048, 1500, 1024, 800]:
+        if max(w, h) <= max_dim:
+            yield img, f"original_{max_dim}"
+            continue
+
+        ratio = max_dim / max(w, h)
+        resized = img.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
+        yield resized, f"resize_{max_dim}"
+
+        # Try with sharpening
+        sharp = resized.filter(ImageFilter.SHARPEN)
+        yield sharp, f"resize_{max_dim}_sharpen"
+
+        # Try with contrast boost
+        enhancer = ImageEnhance.Contrast(resized)
+        contrast = enhancer.enhance(1.5)
+        yield contrast, f"resize_{max_dim}_contrast"
+
+
 def scan_image(image_path: Path) -> ScanResult:
     """
     Scan an image for QR codes and extract iNaturalist observation ID.
+
+    Tries multiple image processing approaches to maximize detection rate:
+    - Multiple resize levels (high-res images can cause issues)
+    - Sharpening and contrast enhancement
 
     Args:
         image_path: Path to the image file
@@ -59,34 +102,22 @@ def scan_image(image_path: Path) -> ScanResult:
             if img.mode != "RGB":
                 img = img.convert("RGB")
 
-            # Decode QR codes
-            decoded = pyzbar.decode(img)
+            # Try original image first
+            obs_id = _try_decode_qr(img)
+            if obs_id is not None:
+                return ScanResult(image_path=image_path, observation_id=obs_id)
 
-            # Look for iNaturalist URLs in decoded data
-            for obj in decoded:
-                if obj.type == "QRCODE":
-                    try:
-                        data = obj.data.decode("utf-8")
-                        obs_id = extract_observation_id(data)
-                        if obs_id is not None:
-                            return ScanResult(
-                                image_path=image_path,
-                                observation_id=obs_id
-                            )
-                    except UnicodeDecodeError:
-                        continue
+            # Try various image processing approaches
+            for variant, method in _generate_image_variants(img):
+                obs_id = _try_decode_qr(variant)
+                if obs_id is not None:
+                    return ScanResult(image_path=image_path, observation_id=obs_id)
 
             # No valid iNat QR code found
-            if decoded:
-                return ScanResult(
-                    image_path=image_path,
-                    error="QR code found but not an iNaturalist observation URL"
-                )
-            else:
-                return ScanResult(
-                    image_path=image_path,
-                    error="No QR code detected"
-                )
+            return ScanResult(
+                image_path=image_path,
+                error="No QR code detected"
+            )
 
     except FileNotFoundError:
         return ScanResult(
