@@ -11,7 +11,7 @@ from .config import Config, load_config, save_config, load_token, save_token
 from .history import HistoryManager
 from .images import compute_hash, process_image
 from .inat import INatClient, INatError
-from .models import ManifestItem, ProcessingOptions
+from .models import ManifestItem, ProcessingOptions, ScanResult
 from .scanner import is_supported_image, scan_batch, get_supported_extensions
 from . import ui
 
@@ -152,6 +152,17 @@ def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int
 
     if failed_scans:
         ui.display_scan_results(failed_scans)
+
+        # Offer manual entry for failed scans
+        if ui.prompt_manual_entry_for_failures(len(failed_scans)):
+            for failed in failed_scans:
+                obs_id = ui.prompt_manual_observation_id(failed.image_path.name)
+                if obs_id is not None:
+                    # Create a successful scan result with manually entered ID
+                    successful_scans.append(ScanResult(
+                        image_path=failed.image_path,
+                        observation_id=obs_id
+                    ))
 
     if not successful_scans:
         ui.print_error("No valid iNaturalist QR codes found in any images.")

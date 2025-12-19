@@ -179,6 +179,59 @@ def prompt_confirm_duplicates() -> bool:
     )
 
 
+def prompt_manual_observation_id(filename: str) -> int | None:
+    """
+    Prompt user to manually enter an observation ID for a failed scan.
+
+    Args:
+        filename: Name of the image file
+
+    Returns:
+        Observation ID if entered, None if skipped
+    """
+    console.print(f"\n[cyan]{filename}[/cyan]")
+    response = Prompt.ask(
+        "  Enter observation ID (or press Enter to skip)",
+        default=""
+    )
+
+    if not response.strip():
+        return None
+
+    # Handle full URLs or just IDs
+    response = response.strip()
+
+    # Try to extract ID from URL
+    if "inaturalist.org" in response:
+        import re
+        match = re.search(r"/observations/(\d+)", response)
+        if match:
+            return int(match.group(1))
+
+    # Try to parse as integer
+    try:
+        return int(response)
+    except ValueError:
+        console.print("  [yellow]Invalid input, skipping[/yellow]")
+        return None
+
+
+def prompt_manual_entry_for_failures(failed_count: int) -> bool:
+    """
+    Ask if user wants to manually enter observation IDs for failed scans.
+
+    Args:
+        failed_count: Number of images that failed QR detection
+
+    Returns:
+        True if user wants to enter IDs manually
+    """
+    return Confirm.ask(
+        f"Manually enter observation IDs for {failed_count} failed image(s)?",
+        default=False
+    )
+
+
 def print_auth_browser_message() -> None:
     """Inform user that browser will open for authentication."""
     console.print("\n[bold]iNaturalist Authentication[/bold]")
