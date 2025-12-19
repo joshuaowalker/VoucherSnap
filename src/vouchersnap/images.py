@@ -12,6 +12,12 @@ try:
 except ImportError:
     pass
 
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+
 from .models import ProcessingOptions
 
 
@@ -59,6 +65,41 @@ def load_image(path: Path) -> Image.Image:
         img = img.convert("RGB")
 
     return img
+
+
+def auto_rotate_by_text(img: Image.Image, min_confidence: float = 1.0) -> Image.Image:
+    """
+    Detect text orientation using OCR and rotate image so text is horizontal.
+
+    Requires tesseract to be installed. If not available, returns image unchanged.
+
+    Args:
+        img: PIL Image object
+        min_confidence: Minimum confidence threshold for rotation (default 1.0)
+
+    Returns:
+        Rotated PIL Image (or original if rotation not needed/possible)
+    """
+    if not TESSERACT_AVAILABLE:
+        return img
+
+    try:
+        # Use Tesseract OSD (Orientation and Script Detection)
+        osd = pytesseract.image_to_osd(img, output_type=pytesseract.Output.DICT)
+
+        rotation = osd.get("rotate", 0)
+        confidence = osd.get("orientation_conf", 0)
+
+        if rotation != 0 and confidence >= min_confidence:
+            # Tesseract gives clockwise rotation, PIL rotate() is counter-clockwise
+            pil_rotation = (360 - rotation) % 360
+            img = img.rotate(pil_rotation, expand=True)
+
+        return img
+
+    except Exception:
+        # If OSD fails (e.g., not enough text), return original
+        return img
 
 
 def resize_image(img: Image.Image, max_dimension: int) -> Image.Image:
@@ -176,6 +217,10 @@ def process_image(
 
     # Load and convert
     img = load_image(path)
+
+    # Auto-rotate based on text detection if enabled
+    if options.auto_rotate:
+        img = auto_rotate_by_text(img)
 
     # Resize if needed
     img = resize_image(img, options.max_dimension)

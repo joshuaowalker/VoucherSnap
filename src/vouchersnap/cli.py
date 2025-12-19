@@ -118,7 +118,8 @@ def cli(ctx):
 @click.option("--max-size", default=2048, help="Max image dimension (default: 2048)")
 @click.option("--quality", default=85, help="JPEG quality 1-100 (default: 85)")
 @click.option("--skip-duplicates", is_flag=True, help="Skip duplicate images without prompting")
-def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int, skip_duplicates: bool):
+@click.option("--auto-rotate", is_flag=True, help="Auto-rotate images based on text detection (requires tesseract)")
+def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int, skip_duplicates: bool, auto_rotate: bool):
     """Interactive workflow for scanning and uploading images.
 
     PATHS can be directories, files, or glob patterns (e.g., *.jpg)
@@ -235,6 +236,7 @@ def run(paths: tuple[str, ...], caption: str | None, max_size: int, quality: int
         max_dimension=max_size,
         jpeg_quality=quality,
         caption=caption,
+        auto_rotate=auto_rotate,
     )
 
     successful = 0

@@ -101,3 +101,4 @@ class ProcessingOptions:
     max_dimension: int = 2048
     jpeg_quality: int = 85
     caption: str | None = None
+    auto_rotate: bool = False

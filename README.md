@@ -201,6 +201,7 @@ VoucherSnap stores data in `~/.VoucherSnap/`:
 | `--max-size` | 2048 | Max image dimension (pixels) |
 | `--quality` | 85 | JPEG quality (1-100) |
 | `--skip-duplicates` | False | Skip duplicates without prompting |
+| `--auto-rotate` | False | Auto-rotate images based on text detection |
 
 ### `history` command
 
@@ -208,10 +209,36 @@ VoucherSnap stores data in `~/.VoucherSnap/`:
 |--------|---------|-------------|
 | `--limit`, `-n` | 20 | Number of records to show |
 
+## Auto-Rotate (Optional)
+
+If your phone's accelerometer doesn't trigger correctly, images may have incorrect EXIF orientation. The `--auto-rotate` flag uses OCR to detect text orientation and correct it.
+
+**Requirements for auto-rotate:**
+
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr
+
+# Install Python bindings
+pip install vouchersnap[ocr]
+# or: pip install pytesseract
+```
+
+**Usage:**
+```bash
+vouchersnap run ~/Photos/ --auto-rotate
+```
+
+This feature is optional - VoucherSnap works without it, but images with bad EXIF orientation won't be corrected.
+
 ## Requirements
 
 - Python 3.10+
 - zbar library (system dependency)
+- tesseract (optional, for `--auto-rotate`)
 
 ## License
 

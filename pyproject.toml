@@ -35,6 +35,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ocr = [
+    "pytesseract>=0.3.10",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
