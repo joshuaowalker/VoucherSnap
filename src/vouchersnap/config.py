@@ -7,6 +7,10 @@ from pathlib import Path
 from .auth import TokenInfo
 
 
+# iNaturalist OAuth Application ID (PKCE - no secret required)
+# Registered at: https://www.inaturalist.org/oauth/applications
+INAT_CLIENT_ID = "brJI3haKZ37eMwxx1owhBgYHhGQ7PDAhP_EPZlnLLBo"
+
 DEFAULT_MAX_DIMENSION = 2048
 DEFAULT_JPEG_QUALITY = 85
 
@@ -37,7 +41,7 @@ def get_history_path() -> Path:
 class Config:
     """VoucherSnap configuration."""
 
-    client_id: str = ""
+    client_id: str = INAT_CLIENT_ID
     default_max_dimension: int = DEFAULT_MAX_DIMENSION
     default_jpeg_quality: int = DEFAULT_JPEG_QUALITY
 
@@ -58,7 +62,7 @@ class Config:
     def from_dict(cls, data: dict) -> "Config":
         """Create from dictionary (JSON deserialization)."""
         return cls(
-            client_id=data.get("client_id", ""),
+            client_id=data.get("client_id", INAT_CLIENT_ID),
             default_max_dimension=data.get("default_max_dimension", DEFAULT_MAX_DIMENSION),
             default_jpeg_quality=data.get("default_jpeg_quality", DEFAULT_JPEG_QUALITY),
         )
