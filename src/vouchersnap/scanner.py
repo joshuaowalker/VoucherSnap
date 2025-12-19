@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 from pyzbar import pyzbar
 
 try:
@@ -52,6 +52,9 @@ def scan_image(image_path: Path) -> ScanResult:
     try:
         # Load the image
         with Image.open(image_path) as img:
+            # Apply EXIF orientation
+            img = ImageOps.exif_transpose(img)
+
             # Convert to RGB if necessary (pyzbar works better with RGB)
             if img.mode != "RGB":
                 img = img.convert("RGB")
