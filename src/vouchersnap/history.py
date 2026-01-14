@@ -147,3 +147,42 @@ class HistoryManager:
     def count(self) -> int:
         """Get total number of upload records."""
         return len(self._records)
+
+    def get_unique_observations(
+        self,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> dict[int, list[UploadRecord]]:
+        """
+        Get unique observation IDs grouped with their upload records.
+
+        Args:
+            since: Only include records after this datetime
+            until: Only include records before this datetime
+
+        Returns:
+            Dictionary mapping observation_id to list of UploadRecords,
+            sorted by earliest upload timestamp
+        """
+        # Filter records by date range
+        filtered = self._records
+        if since:
+            filtered = [r for r in filtered if r.timestamp >= since]
+        if until:
+            filtered = [r for r in filtered if r.timestamp <= until]
+
+        # Group by observation ID
+        groups: dict[int, list[UploadRecord]] = {}
+        for record in filtered:
+            if record.observation_id not in groups:
+                groups[record.observation_id] = []
+            groups[record.observation_id].append(record)
+
+        # Sort each group by timestamp and sort groups by earliest timestamp
+        for obs_id in groups:
+            groups[obs_id].sort(key=lambda r: r.timestamp)
+
+        # Return sorted by earliest upload
+        return dict(
+            sorted(groups.items(), key=lambda x: x[1][0].timestamp)
+        )

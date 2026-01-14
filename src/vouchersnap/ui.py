@@ -278,3 +278,131 @@ def display_summary(
         console.print(f"  [red]Failed:     {failed}[/red]")
     if skipped > 0:
         console.print(f"  [yellow]Skipped:    {skipped}[/yellow]")
+
+
+def display_observation_list(
+    observations: list[tuple[int, int, str, str]],
+    selected: set[int],
+) -> None:
+    """
+    Display numbered list of observations for manifest selection.
+
+    Args:
+        observations: List of (index, obs_id, date_str, filename) tuples
+        selected: Set of selected indices (1-based)
+    """
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("", width=3)  # Selection marker
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Obs ID", style="green")
+    table.add_column("First Upload", style="dim")
+    table.add_column("Filename", style="cyan")
+
+    for idx, obs_id, date_str, filename in observations:
+        marker = "[bold green][*][/bold green]" if idx in selected else "[ ]"
+        table.add_row(marker, str(idx), str(obs_id), date_str, filename)
+
+    console.print(table)
+
+
+def interactive_toggle_selection(
+    observations: list[tuple[int, int, str, str]],
+) -> set[int]:
+    """
+    Interactive toggle selection for observations.
+
+    Args:
+        observations: List of (index, obs_id, date_str, filename) tuples
+
+    Returns:
+        Set of selected observation IDs
+    """
+    selected_indices: set[int] = set()
+    max_idx = len(observations)
+
+    # Initial display
+    display_observation_list(observations, selected_indices)
+
+    while True:
+        console.print()
+        response = Prompt.ask(
+            'Enter numbers to toggle (e.g., "1 3 5"), "all", "none", or "done"',
+            default=""
+        ).strip().lower()
+
+        if response == "done":
+            break
+        elif response == "all":
+            selected_indices = set(range(1, max_idx + 1))
+        elif response == "none":
+            selected_indices = set()
+        elif response == "":
+            continue
+        else:
+            # Parse space-separated numbers
+            for part in response.split():
+                try:
+                    num = int(part)
+                    if 1 <= num <= max_idx:
+                        if num in selected_indices:
+                            selected_indices.discard(num)
+                        else:
+                            selected_indices.add(num)
+                    else:
+                        console.print(f"[yellow]Invalid: {num} (enter 1-{max_idx})[/yellow]")
+                except ValueError:
+                    console.print(f"[yellow]Invalid input: {part}[/yellow]")
+
+        # Redisplay with updated selection
+        console.print()
+        display_observation_list(observations, selected_indices)
+
+    # Convert indices to observation IDs
+    idx_to_obs = {idx: obs_id for idx, obs_id, _, _ in observations}
+    return {idx_to_obs[idx] for idx in selected_indices}
+
+
+def format_plain_manifest(
+    items: list[tuple[int, str, str | None]],
+) -> str:
+    """
+    Format observations as plain ASCII manifest with checkboxes.
+
+    Args:
+        items: List of (obs_id, taxon_name, common_name) tuples
+
+    Returns:
+        Plain text manifest string for printing
+    """
+    from datetime import datetime
+
+    lines = []
+    lines.append("=" * 50)
+    lines.append("SHIPPING MANIFEST")
+    lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d')}")
+    lines.append("=" * 50)
+    lines.append("")
+
+    for obs_id, taxon_name, common_name in items:
+        taxon_display = taxon_name or "Unknown taxon"
+        if common_name:
+            taxon_display = f"{taxon_display} ({common_name})"
+        lines.append(f"[ ] {obs_id}  {taxon_display}")
+
+    lines.append("")
+    lines.append("=" * 50)
+    lines.append(f"Total: {len(items)} specimen(s)")
+    lines.append("=" * 50)
+
+    return "\n".join(lines)
+
+
+def print_plain_manifest(manifest_text: str) -> None:
+    """
+    Print manifest as plain text without Rich formatting.
+
+    Args:
+        manifest_text: The formatted manifest string
+    """
+    # Use print() directly to avoid Rich markup interpretation
+    print(manifest_text)

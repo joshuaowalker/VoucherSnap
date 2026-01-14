@@ -331,6 +331,98 @@ def history(limit: int):
 
 
 @cli.command()
+@click.option("--since", "-s", help="Only include observations since date (YYYY-MM-DD)")
+@click.option("--until", "-u", help="Only include observations until date (YYYY-MM-DD)")
+@click.option("--all", "-a", "select_all", is_flag=True, help="Select all observations without prompting")
+def manifest(since: str | None, until: str | None, select_all: bool):
+    """Generate a shipping manifest from upload history.
+
+    Creates a printable checklist of observations with taxon names
+    for tracking physical specimen shipments.
+    """
+    from datetime import datetime
+
+    ui.print_banner()
+
+    # Parse date filters
+    since_dt = None
+    until_dt = None
+
+    if since:
+        try:
+            since_dt = datetime.strptime(since, "%Y-%m-%d")
+        except ValueError:
+            ui.print_error(f"Invalid date format: {since}. Use YYYY-MM-DD.")
+            raise SystemExit(1)
+
+    if until:
+        try:
+            until_dt = datetime.strptime(until, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59
+            )
+        except ValueError:
+            ui.print_error(f"Invalid date format: {until}. Use YYYY-MM-DD.")
+            raise SystemExit(1)
+
+    # Load and filter history
+    history_mgr = HistoryManager()
+    obs_groups = history_mgr.get_unique_observations(since=since_dt, until=until_dt)
+
+    if not obs_groups:
+        if since or until:
+            ui.print_info("No observations found in the specified date range.")
+        else:
+            ui.print_info("No upload history found. Run 'vouchersnap run' first.")
+        raise SystemExit(0)
+
+    ui.print_info(f"Found {len(obs_groups)} unique observation(s)")
+
+    # Build selection list: (index, obs_id, date_str, filename)
+    obs_list = []
+    for idx, (obs_id, records) in enumerate(obs_groups.items(), 1):
+        first_record = records[0]
+        date_str = first_record.timestamp.strftime("%Y-%m-%d")
+        obs_list.append((idx, obs_id, date_str, first_record.filename))
+
+    # Select observations
+    if select_all:
+        selected_obs_ids = set(obs_groups.keys())
+        ui.console.print("\n[bold]All observations selected.[/bold]")
+    else:
+        ui.console.print("\n[bold]Select observations for manifest:[/bold]\n")
+        selected_obs_ids = ui.interactive_toggle_selection(obs_list)
+
+    if not selected_obs_ids:
+        ui.print_info("No observations selected.")
+        raise SystemExit(0)
+
+    ui.console.print(f"\n[bold]Fetching taxon names for {len(selected_obs_ids)} observation(s)...[/bold]")
+
+    # Fetch taxon names from iNaturalist
+    client = INatClient()  # No token needed for read-only
+    manifest_items = []
+
+    with ui.create_progress() as progress:
+        task = progress.add_task("Fetching...", total=len(selected_obs_ids))
+        for obs_id in sorted(selected_obs_ids):
+            try:
+                obs = client.fetch_observation(obs_id)
+                manifest_items.append((obs_id, obs.taxon_name, obs.taxon_common_name))
+            except INatError as e:
+                ui.print_warning(f"Could not fetch observation {obs_id}: {e}")
+                manifest_items.append((obs_id, None, None))
+            progress.advance(task)
+
+    # Sort by observation ID for consistent ordering
+    manifest_items.sort(key=lambda x: x[0])
+
+    # Print plain manifest
+    manifest_text = ui.format_plain_manifest(manifest_items)
+    ui.console.print()
+    ui.print_plain_manifest(manifest_text)
+
+
+@cli.command()
 def login():
     """Authenticate with iNaturalist.
 
