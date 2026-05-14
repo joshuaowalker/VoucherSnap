@@ -2,11 +2,12 @@
 
 import io
 
+import requests
 from pyinaturalist import (
     ClientSession,
     get_observation,
-    upload_photos,
 )
+from pyinaturalist.v1 import upload as upload_photos_v1
 
 from . import __version__
 from .auth import TokenInfo
@@ -114,7 +115,7 @@ class INatClient:
             photo_file = io.BytesIO(image_data)
             photo_file.name = filename
 
-            response = upload_photos(
+            response = upload_photos_v1(
                 observation_id=obs_id,
                 photos=photo_file,
                 access_token=self.access_token,
@@ -131,6 +132,21 @@ class INatClient:
 
         except INatError:
             raise
+        except requests.HTTPError as e:
+            body = ""
+            req_url = ""
+            if e.response is not None:
+                req_url = e.response.url
+                try:
+                    body = e.response.text[:1000]
+                except Exception:
+                    body = "<unreadable response body>"
+            raise INatError(
+                f"Failed to upload photo to observation {obs_id}: "
+                f"HTTP {e.response.status_code if e.response is not None else '?'} "
+                f"{e.response.reason if e.response is not None else ''} "
+                f"url={req_url} body={body!r}"
+            ) from e
         except Exception as e:
             raise INatError(f"Failed to upload photo to observation {obs_id}: {e}") from e
 

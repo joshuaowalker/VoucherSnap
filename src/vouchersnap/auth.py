@@ -15,8 +15,12 @@ import requests
 
 INAT_AUTH_URL = "https://www.inaturalist.org/oauth/authorize"
 INAT_TOKEN_URL = "https://www.inaturalist.org/oauth/token"
+INAT_API_TOKEN_URL = "https://www.inaturalist.org/users/api_token"
 REDIRECT_PORT = 8914
 REDIRECT_URI = f"http://127.0.0.1:{REDIRECT_PORT}/callback"
+
+# iNaturalist JWT API tokens are valid for 24 hours
+JWT_EXPIRES_IN = 86400
 
 
 class AuthError(Exception):
@@ -215,9 +219,42 @@ def authenticate_pkce(client_id: str, timeout: int = 120) -> TokenInfo:
     if "access_token" not in token_response:
         raise AuthError(f"Invalid token response: {token_response}")
 
+    # Exchange the OAuth access token for a JWT API token. iNaturalist's
+    # write endpoints (e.g. POST /observation_photos) require the JWT;
+    # the raw OAuth token returns 403.
+    api_token = _exchange_for_api_token(token_response["access_token"])
+
     return TokenInfo(
-        access_token=token_response["access_token"],
-        token_type=token_response.get("token_type", "Bearer"),
+        access_token=api_token,
+        token_type="Bearer",
         created_at=datetime.now(),
-        expires_in=token_response.get("expires_in"),
+        expires_in=JWT_EXPIRES_IN,
     )
+
+
+def _exchange_for_api_token(oauth_access_token: str) -> str:
+    """Exchange an OAuth access token for a JWT API token."""
+    try:
+        response = requests.get(
+            INAT_API_TOKEN_URL,
+            headers={"Authorization": f"Bearer {oauth_access_token}"},
+            timeout=30,
+        )
+    except requests.RequestException as e:
+        raise AuthError(f"Failed to obtain API token: {e}") from e
+
+    if not response.ok:
+        raise AuthError(
+            f"Failed to obtain API token: HTTP {response.status_code} {response.reason} — "
+            f"body: {response.text[:500]}"
+        )
+
+    try:
+        data = response.json()
+    except ValueError as e:
+        raise AuthError(f"API token response was not JSON: {response.text[:500]}") from e
+
+    if "api_token" not in data:
+        raise AuthError(f"Invalid API token response: {data}")
+
+    return data["api_token"]
